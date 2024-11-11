@@ -89,4 +89,26 @@ async function runPostgresTest() {
   }
 }
 
+async function clearDatabase() {
+    const queries = [
+      'TRUNCATE TABLE tasks CASCADE', // Очищаємо таблицю завдань з усіма залежними даними
+      'TRUNCATE TABLE taskPriorities CASCADE', // Очищаємо таблицю пріоритетів
+      'TRUNCATE TABLE taskTypes CASCADE', // Очищаємо таблицю типів
+      'TRUNCATE TABLE taskStatuses CASCADE', // Очищаємо таблицю статусів
+    ];
+  
+    try {
+      await client.connect();
+      for (const query of queries) {
+        await client.query(query);
+      }
+      console.log('Database cleared successfully');
+    } catch (err) {
+      console.error('Error clearing database', err.stack);
+    } finally {
+      await client.end();
+    }
+  }
+
 runPostgresTest().catch(console.error);
+clearDatabase();

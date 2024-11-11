@@ -90,6 +90,14 @@ async function runPostgresTest() {
 }
 
 async function clearDatabase() {
+    const client = new Client({
+      host: process.env.DB_HOST,
+      port: process.env.DB_PORT,
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME
+    });
+  
     const queries = [
       'TRUNCATE TABLE tasks CASCADE', // Очищаємо таблицю завдань з усіма залежними даними
       'TRUNCATE TABLE taskPriorities CASCADE', // Очищаємо таблицю пріоритетів
@@ -98,7 +106,7 @@ async function clearDatabase() {
     ];
   
     try {
-      await client.connect();
+      await client.connect(); // Підключаємо новий клієнт до бази
       for (const query of queries) {
         await client.query(query);
       }
@@ -106,9 +114,9 @@ async function clearDatabase() {
     } catch (err) {
       console.error('Error clearing database', err.stack);
     } finally {
-      await client.end();
+      await client.end(); // Закриваємо підключення
     }
-  }
+}
 
 runPostgresTest().catch(console.error);
 clearDatabase();

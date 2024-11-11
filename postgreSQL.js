@@ -1,11 +1,12 @@
 require('dotenv').config();
 const { Client } = require('pg');
+
 const client = new Client({
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME
 });
 
 async function runPostgresTest() {
@@ -17,25 +18,24 @@ async function runPostgresTest() {
     const taskPriorityQuery = 'INSERT INTO taskPriorities (priority_name) VALUES ($1)';
     const taskTypeQuery = 'INSERT INTO taskTypes (type_name) VALUES ($1)';
     const taskStatusQuery = 'INSERT INTO taskStatuses (status_name) VALUES ($1)';
-    
+
     await client.query(taskPriorityQuery, ['High']);
     await client.query(taskPriorityQuery, ['Medium']);
     await client.query(taskPriorityQuery, ['Low']);
 
     await client.query(taskTypeQuery, ['Bug']);
     await client.query(taskTypeQuery, ['Feature']);
-    
+
     await client.query(taskStatusQuery, ['To Do']);
     await client.query(taskStatusQuery, ['In Progress']);
     await client.query(taskStatusQuery, ['Completed']);
-    
+
     const taskQuery = `INSERT INTO tasks (project_id, title, description, status_id, priority_id, type_id, assigned_to) 
                        VALUES ($1, $2, $3, (SELECT id FROM taskStatuses WHERE status_name = $4), 
                                (SELECT id FROM taskPriorities WHERE priority_name = $5), 
                                (SELECT id FROM taskTypes WHERE type_name = $6), 
                                $7)`;
 
-    // Додавання кількох задач
     await client.query(taskQuery, [1, 'Fix Login Bug', 'Login button is unresponsive', 'To Do', 'High', 'Bug', 2]);
     await client.query(taskQuery, [1, 'Add Logout Button', 'Logout button does not work', 'To Do', 'Medium', 'Feature', 2]);
     await client.query(taskQuery, [1, 'Update User Profile', 'Profile page does not save changes', 'To Do', 'Low', 'Bug', 3]);
@@ -90,33 +90,34 @@ async function runPostgresTest() {
 }
 
 async function clearDatabase() {
-    const client = new Client({
-      host: process.env.DB_HOST,
-      port: process.env.DB_PORT,
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME
-    });
-  
+  const clearClient = new Client({
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME
+  });
+
+  try {
+    await clearClient.connect();
+
     const queries = [
-      'TRUNCATE TABLE tasks CASCADE', // Очищаємо таблицю завдань з усіма залежними даними
-      'TRUNCATE TABLE taskPriorities CASCADE', // Очищаємо таблицю пріоритетів
-      'TRUNCATE TABLE taskTypes CASCADE', // Очищаємо таблицю типів
-      'TRUNCATE TABLE taskStatuses CASCADE', // Очищаємо таблицю статусів
+      'TRUNCATE TABLE tasks CASCADE',
+      'TRUNCATE TABLE taskPriorities CASCADE',
+      'TRUNCATE TABLE taskTypes CASCADE',
+      'TRUNCATE TABLE taskStatuses CASCADE',
     ];
-  
-    try {
-      await client.connect(); // Підключаємо новий клієнт до бази
-      for (const query of queries) {
-        await client.query(query);
-      }
-      console.log('Database cleared successfully');
-    } catch (err) {
-      console.error('Error clearing database', err.stack);
-    } finally {
-      await client.end(); // Закриваємо підключення
+
+    for (const query of queries) {
+      await clearClient.query(query);
     }
+    console.log('Database cleared successfully');
+  } catch (err) {
+    console.error('Error clearing database', err.stack);
+  } finally {
+    await clearClient.end();
+  }
 }
 
 runPostgresTest().catch(console.error);
-clearDatabase();
+clearDatabase().catch(console.error);

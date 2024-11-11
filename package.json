@@ -1,0 +1,11 @@
+{
+    "name": "db-lab-2",
+    "version": "1.0.0",
+    "scripts": {
+      "mongoDB": "node mongoDB.js"
+    },
+    "dependencies": {
+      "mongodb": "^4.1.0"
+    }
+  }
+  

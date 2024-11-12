@@ -47,50 +47,62 @@ async function runMongoDBTest() {
       
       // Тест 2: Складний запит SELECT з агрегуванням
       console.time('MongoDB Complex Find');
-      const result = await tasks.aggregate([
+        const result = await tasks.aggregate([
         {
-          $lookup: {
+            $lookup: {
             from: 'taskPriorities',
             localField: 'priority_id',
             foreignField: '_id',
             as: 'priority'
-          }
+            }
         },
         {
-          $lookup: {
+            $lookup: {
             from: 'taskTypes',
             localField: 'type_id',
             foreignField: '_id',
             as: 'type'
-          }
+            }
         },
         {
-          $lookup: {
+            $lookup: {
             from: 'taskStatuses',
             localField: 'status_id',
             foreignField: '_id',
             as: 'status'
-          }
+            }
         },
         {
-          $unwind: '$priority',
+            $unwind: {
+            path: '$priority',
+            preserveNullAndEmptyArrays: true
+            },
         },
         {
-          $unwind: '$type',
+            $unwind: {
+            path: '$type',
+            preserveNullAndEmptyArrays: true
+            },
         },
         {
-          $unwind: '$status',
+            $unwind: {
+            path: '$status',
+            preserveNullAndEmptyArrays: true
+            },
         },
         {
-          $project: {
+            $project: {
             title: 1,
             description: 1,
             'priority.priority_name': 1,
             'type.type_name': 1,
             'status.status_name': 1
-          }
+            }
         }
-      ]).toArray();
+        ]).toArray();
+
+        console.log(result);
+
       
       console.timeEnd('MongoDB Complex Find');
       console.log(result);

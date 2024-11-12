@@ -13,7 +13,12 @@ async function runPostgresTest() {
   try {
     await client.connect();
 
-    // Тест 1: Вставка даних у кілька таблиць
+    await client.query('CREATE INDEX IF NOT EXISTS idx_priority_name ON taskPriorities(priority_name)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_type_name ON taskTypes(type_name)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_status_name ON taskStatuses(status_name)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_task_project_title ON tasks(project_id, title)');
+
+    // Тест 1: Вставка великого обсягу даних у таблиці
     console.time('PostgreSQL Bulk Insert');
     const taskPriorityQuery = 'INSERT INTO taskPriorities (priority_name) VALUES ($1)';
     const taskTypeQuery = 'INSERT INTO taskTypes (type_name) VALUES ($1)';
@@ -25,24 +30,25 @@ async function runPostgresTest() {
 
     await client.query(taskTypeQuery, ['Bug']);
     await client.query(taskTypeQuery, ['Feature']);
+    await client.query(taskTypeQuery, ['Improvement']);
 
     await client.query(taskStatusQuery, ['To Do']);
     await client.query(taskStatusQuery, ['In Progress']);
     await client.query(taskStatusQuery, ['Completed']);
 
-    const taskQuery = `INSERT INTO tasks (project_id, title, description, status_id, priority_id, type_id, assigned_to) 
-                       VALUES ($1, $2, $3, (SELECT id FROM taskStatuses WHERE status_name = $4), 
-                               (SELECT id FROM taskPriorities WHERE priority_name = $5), 
-                               (SELECT id FROM taskTypes WHERE type_name = $6), 
-                               $7)`;
-
-    await client.query(taskQuery, [1, 'Fix Login Bug', 'Login button is unresponsive', 'To Do', 'High', 'Bug', 2]);
-    await client.query(taskQuery, [1, 'Add Logout Button', 'Logout button does not work', 'To Do', 'Medium', 'Feature', 2]);
-    await client.query(taskQuery, [1, 'Update User Profile', 'Profile page does not save changes', 'To Do', 'Low', 'Bug', 3]);
-
+    for (let i = 0; i < 1000; i++) {
+      await client.query(`
+        INSERT INTO tasks (project_id, title, description, status_id, priority_id, type_id, assigned_to) 
+        VALUES ($1, $2, $3, (SELECT id FROM taskStatuses WHERE status_name = $4), 
+                (SELECT id FROM taskPriorities WHERE priority_name = $5), 
+                (SELECT id FROM taskTypes WHERE type_name = $6), 
+                $7)`,
+        [i, `Task ${i}`, `Description for task ${i}`, 'To Do', 'High', 'Bug', i % 10]
+      );
+    }
     console.timeEnd('PostgreSQL Bulk Insert');
 
-    // Тест 2: Складний запит SELECT з об’єднанням таблиць та агрегацією
+    // Тест 2: Складний SELECT із об'єднанням та агрегацією
     console.time('PostgreSQL Complex SELECT');
     const result = await client.query(`
       SELECT taskStatuses.status_name, COUNT(tasks.id) AS task_count
@@ -51,36 +57,24 @@ async function runPostgresTest() {
       GROUP BY taskStatuses.status_name
     `);
     console.timeEnd('PostgreSQL Complex SELECT');
-    console.log(result.rows);
+    console.log('Number of results:', result.rows.length);
 
     // Тест 3: Оновлення даних
     console.time('PostgreSQL Update');
     await client.query(`
       UPDATE tasks SET status_id = (SELECT id FROM taskStatuses WHERE status_name = 'In Progress') 
-      WHERE project_id = $1 AND status_id = (SELECT id FROM taskStatuses WHERE status_name = 'To Do')
-    `, [1]);
+      WHERE project_id < 500 AND status_id = (SELECT id FROM taskStatuses WHERE status_name = 'To Do')
+    `);
     console.timeEnd('PostgreSQL Update');
 
-    // Тест 4: Видалення даних з додатковими умовами
+    // Тест 4: Видалення даних
     console.time('PostgreSQL Delete');
     await client.query(`
       DELETE FROM tasks 
-      WHERE project_id = $1 
-      AND status_id = (SELECT id FROM taskStatuses WHERE status_name = 'Completed')
-      AND assigned_to = 2
-    `, [1]);
+      WHERE project_id >= 500 
+      AND status_id = (SELECT id FROM taskStatuses WHERE status_name = 'To Do')
+    `);
     console.timeEnd('PostgreSQL Delete');
-
-    // Тест 5: Транзакції (гарантує, що операції будуть виконані атомарно)
-    await client.query('BEGIN');
-    try {
-      await client.query('UPDATE tasks SET status_id = (SELECT id FROM taskStatuses WHERE status_name = $1) WHERE id = $2', ['Completed', 1]);
-      await client.query('UPDATE tasks SET assigned_to = $1 WHERE id = $2', [3, 1]);
-      await client.query('COMMIT');
-    } catch (error) {
-      console.log('Error in transaction, rolling back:', error);
-      await client.query('ROLLBACK');
-    }
 
   } catch (err) {
     console.error('Error executing query', err.stack);

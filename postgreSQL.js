@@ -85,6 +85,7 @@ async function runPostgresTest() {
   } catch (err) {
     console.error('Error executing query', err.stack);
   } finally {
+    await clearDatabase().catch(console.error);
     await client.end();
   }
 }
@@ -120,4 +121,3 @@ async function clearDatabase() {
 }
 
 runPostgresTest().catch(console.error);
-clearDatabase().catch(console.error);

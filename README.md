@@ -1,4 +1,4 @@
-Don`t forget to add ```.env``` file.
+Don't forget to add ```.env``` file.
 
 # Installation
 ``` bash

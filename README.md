@@ -1,3 +1,5 @@
+Don`t forget to add ```.env``` file.
+
 # Installation
 ``` bash
 npm install
